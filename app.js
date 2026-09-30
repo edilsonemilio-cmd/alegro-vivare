@@ -22,12 +22,49 @@
     return turno === "noite" ? AV_SEED.vagasNoite : AV_SEED.vagasDia;
   }
 
+  function bancoOn() {
+    const b = window.AV_BANCO || {};
+    return !!(b.url && b.key);
+  }
+  function bancoHeaders() {
+    const b = window.AV_BANCO;
+    return {
+      apikey: b.key,
+      Authorization: "Bearer " + b.key,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal"
+    };
+  }
+  async function puxarNuvem() {
+    const b = window.AV_BANCO;
+    const r = await fetch(b.url.replace(/\/$/, "") + "/rest/v1/estado?id=eq.1&select=payload", { headers: bancoHeaders() });
+    if (!r.ok) throw new Error("banco " + r.status);
+    const rows = await r.json();
+    return rows[0] && rows[0].payload;
+  }
+  async function mandarNuvem(obj) {
+    const b = window.AV_BANCO;
+    const r = await fetch(b.url.replace(/\/$/, "") + "/rest/v1/estado?id=eq.1", {
+      method: "PATCH",
+      headers: bancoHeaders(),
+      body: JSON.stringify({ payload: obj, atualizado: new Date().toISOString() })
+    });
+    if (!r.ok) throw new Error("salvar " + r.status);
+  }
   function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) return JSON.parse(raw);
     return bootstrap();
   }
-  function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+  let saveTimer = null;
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    if (!bancoOn()) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      mandarNuvem(state).catch(() => {});
+    }, 400);
+  }
 
   function bootstrap() {
     const users = AV_SEED.usuarios.map(u => ({
@@ -209,12 +246,16 @@
   }
 
   let state = load();
-  state.trocas = state.trocas || [];
-  state.avisos = state.avisos || [];
-  state.falas = state.falas || [];
-  state.insta = state.insta || [];
-  state.notifs = state.notifs || [];
-  gerarGrade(state, today(), 3);
+  function ajeitar(s) {
+    s.trocas = s.trocas || [];
+    s.avisos = s.avisos || [];
+    s.falas = s.falas || [];
+    s.insta = s.insta || [];
+    s.notifs = s.notifs || [];
+    gerarGrade(s, today(), 3);
+    return s;
+  }
+  state = ajeitar(state);
   pagarMesLimpo();
   save();
 
@@ -312,7 +353,7 @@
       <img src="img/logo.png" alt="Alegro Vivare">
       <div>
         <strong>Alegro Vivare</strong> — Envelhecer com Alegria<br>
-        Criado por Edilson Emilio · versão 4.0
+        Alegro Vivare · escala das três casas
       </div>
     </footer>`;
   }
@@ -1529,5 +1570,26 @@
     save(); render();
   }
 
-  routeFromHash();
+  async function iniciar() {
+    if (bancoOn()) {
+      try {
+        const remoto = await puxarNuvem();
+        if (remoto && remoto.users) {
+          state = ajeitar(remoto);
+          try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+        } else {
+          await fetch((window.AV_BANCO.url || "").replace(/\/$/, "") + "/rest/v1/estado?id=eq.1", {
+            method: "PATCH",
+            headers: bancoHeaders(),
+            body: JSON.stringify({ payload: state })
+          });
+        }
+      } catch (e) {
+        alert("Não conectou o banco. A escala não vai ficar igual em todos os celulares até o Supabase estar ligado.");
+      }
+    }
+    pagarMesLimpo();
+    routeFromHash();
+  }
+  iniciar();
 })();
