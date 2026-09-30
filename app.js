@@ -1,5 +1,5 @@
 (function () {
-  const KEY = "alegro-vivare-v13";
+  const KEY = "alegro-vivare-v14";
   const DEV_SEM_LOGIN = false;
   const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const SEMANA = ["DOMINGO","SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"];
@@ -16,6 +16,17 @@
   const today = () => { const x = new Date(); x.setHours(0,0,0,0); return x; };
   const firstName = (n) => (n || "").split(" ")[0];
   const initials = (n) => (n || "?").split(" ").filter(Boolean).slice(0,2).map(p => p[0]).join("").toUpperCase();
+  function ico(nome) {
+    const d = {
+      home: '<path d="M4 12 12 4l8 8v8H14v-5H10v5H4z"/>',
+      cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+      gift: '<path d="M12 8v13M4 12h16v9H4zM3 8h18v4H3zM12 8s-2-4-5-4-3 2-3 2 4 2 8 2 8-2 8-2-0-2-3-2-5 4-5 4z"/>',
+      chat: '<path d="M5 6h14v10H8l-3 3z"/>',
+      more: '<path d="M5 7h14M5 12h14M5 17h14"/>',
+      bell: '<path d="M6 16h12l-1-6a5 5 0 0 0-10 0zM10 19h4"/>'
+    };
+    return `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${d[nome] || ""}</svg>`;
+  }
 
   function slotsPorTurno(unidade, turno) {
     if (turno === "noite" && unidade === "iretama") return AV_SEED.vagasNoiteIretama;
@@ -56,13 +67,28 @@
     if (raw) return JSON.parse(raw);
     return bootstrap();
   }
+  function setSessao(id) {
+    state.session = id || null;
+    try {
+      if (id) sessionStorage.setItem("alegro-sessao", id);
+      else sessionStorage.removeItem("alegro-sessao");
+    } catch (e) {}
+  }
+  function sessaoDesteAparelho() {
+    try { return sessionStorage.getItem("alegro-sessao"); } catch (e) { return null; }
+  }
+  function estadoParaNuvem() {
+    const copia = JSON.parse(JSON.stringify(state));
+    copia.session = null;
+    return copia;
+  }
   let saveTimer = null;
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
     if (!bancoOn()) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      mandarNuvem(state).catch(() => {});
+      mandarNuvem(estadoParaNuvem()).catch(() => {});
     }, 400);
   }
 
@@ -252,6 +278,17 @@
     s.falas = s.falas || [];
     s.insta = s.insta || [];
     s.notifs = s.notifs || [];
+    (s.users || []).forEach(u => {
+      if ((u.email || "").toLowerCase() === "alegrovivare@gmail.com") {
+        u.id = "u-alegro";
+        u.nome = "Alegro Vivare";
+        u.cargo = "Casa";
+        u.papel = "admin";
+        u.loja = true;
+        u.coordena = true;
+      }
+    });
+    if (s.session === "u-edilson") s.session = "u-alegro";
     gerarGrade(s, today(), 3);
     return s;
   }
@@ -260,7 +297,7 @@
   save();
 
   let view = {
-    page: "login", unidade: "courupita", mesOffset: 0, weekOffset: 0, modo: "semana", modal: null,
+    page: "login", unidade: "courupita", mesOffset: 0, weekOffset: 0, modo: "semana", modal: null, sheet: null,
     fonteGrande: localStorage.getItem("alegro-fonte") === "1",
     confirm: null
   };
@@ -333,11 +370,11 @@
   function render() {
     const root = document.getElementById("app");
     if (DEV_SEM_LOGIN) {
-      state.session = state.session || "u-edilson";
+      state.session = state.session || "u-alegro";
       if (["login","cadastro","recuperar"].includes(view.page)) view.page = "perfil";
     }
     if (!state.session && !["login","cadastro","recuperar"].includes(view.page)) view.page = "login";
-    if (state.session && ["login","cadastro","recuperar","home"].includes(view.page)) view.page = "perfil";
+    if (state.session && ["login","cadastro","recuperar"].includes(view.page)) view.page = "home";
     document.documentElement.classList.toggle("fonte-grande", !!view.fonteGrande);
     if (!state.session && !DEV_SEM_LOGIN) root.innerHTML = renderAuth();
     else root.innerHTML = renderShell();
@@ -368,7 +405,7 @@
           <div class="badge-row">
             <span class="pill">12×36 automático</span>
             <span class="pill">Semana e mês</span>
-            <span class="pill">Benefícios SEESS</span>
+            <span class="pill">Benefícios</span>
           </div>
         </div>
         <div class="muted" style="color:#fff;opacity:.85">Envelhecer com Alegria</div>
@@ -443,38 +480,48 @@
 
   function renderShell() {
     const u = me();
-    const nav = [
-      ["perfil","Início"],
-      ["calendario","Mural"],
-      ["loja","Loja"],
-      ["beneficios","Sindicato"],
-      ["fala","Fala"],
-    ];
     const nNao = (state.notifs || []).filter(n => n.userId === u.id && !n.lido).length;
-    nav.push(["avisos", nNao ? "Sino "+nNao : "Sino"]);
-    if (isCoord(u)) nav.push(["painel","Painel"]);
-    if (isAdmin(u)) nav.push(["admin","Bônus"]);
     const av = avisoPendente(u);
-    const dica = !localStorage.getItem("alegro-dica");
-    return `<div class="mobile-nav">
-      ${nav.map(n=>`<button class="${view.page===n[0]?"on":""}" data-go="${n[0]}">${n[1]}</button>`).join("")}
-      <button type="button" id="btn-fonte">${view.fonteGrande ? "A−" : "A+"}</button>
-      <button data-go="sair">Sair</button>
-    </div>
-    <div class="app">
+    const tab = (p) => (p === "home" && view.page === "home") || (p === "calendario" && view.page === "calendario") || (p === "loja" && view.page === "loja") || (p === "fala" && view.page === "fala") || (p === "mais" && ["mais","beneficios","painel","admin","avisos","perfil"].includes(view.page));
+    const foto = u.foto ? `<img src="${u.foto}" alt="">` : `<span>${initials(u.nome)}</span>`;
+    const desk = [
+      ["home","Início"],
+      ["calendario","Escala"],
+      ["loja","Loja"],
+      ["fala","Mensagens"],
+      ["perfil","Perfil"],
+      ["beneficios","Benefícios"],
+    ];
+    if (isCoord(u)) desk.push(["painel","Painel"]);
+    if (isAdmin(u)) desk.push(["admin","Bônus"]);
+    desk.push(["avisos", nNao ? "Avisos "+nNao : "Avisos"]);
+    return `<div class="app-shell">
       <aside class="side">
         <img src="img/logo.png" alt="Alegro Vivare" class="logo-side">
-        <div class="who">
-          <strong>${u.nome}</strong>
-          <span>${u.cargo || ""} · ${u.vinculo === "fixo" ? "Fixo" : "Externo"}</span>
-        </div>
-        ${nav.map(n => `<button class="nav ${view.page===n[0]?"on":""}" data-go="${n[0]}">${n[0]==="perfil"?"Início":n[0]==="calendario"?"Mural":n[0]==="loja"?"Lojinha Alegretes":n[0]==="beneficios"?"Benefícios SEESS":n[0]==="fala"?"Fala com a casa":n[0]==="painel"?"Painel coordenação":"Loja e bônus"}</button>`).join("")}
+        <div class="who"><strong>${u.nome}</strong><span>${u.cargo || ""}</span></div>
+        ${desk.map(n => `<button class="nav ${view.page===n[0]?"on":""}" data-go="${n[0]}">${n[1]}</button>`).join("")}
         <div style="flex:1"></div>
         <button class="nav" type="button" id="btn-fonte-side">${view.fonteGrande ? "A− Letra normal" : "A+ Letra grande"}</button>
         <button class="nav" data-go="sair">Sair</button>
       </aside>
-      <main class="main">${dica ? `<div class="dica">Início é o perfil. Escala fica no Mural. Loja é conquista. <button type="button" class="btn btn-small btn-green" id="ok-dica">Entendi</button></div>` : ""}${faixaAmanha(u)}${view.flash ? `<div class="flash">${view.flash}</div>` : ""}${pageHTML(u)}${rodape()}</main>
-    </div>${view.modal ? modalHTML() : ""}${view.confirm ? confirmarHTML() : ""}${av && !view.confirm ? avisoHTML(av) : ""}${view.premio ? premioHTML() : ""}`;
+      <div>
+        <header class="top-app">
+          <img src="img/logo.png" alt="">
+          <strong>Alegro Vivare</strong>
+          <button class="icon-btn" data-go="avisos" aria-label="Avisos">${ico("bell")}${nNao?`<span class="badge">${nNao>99?"99+":nNao}</span>`:""}</button>
+          <button class="icon-btn avatar-btn" data-go="perfil" aria-label="Perfil">${foto}</button>
+        </header>
+        <main class="main-app">${faixaAmanha(u)}${view.flash ? `<div class="flash">${view.flash}</div>` : ""}${pageHTML(u)}</main>
+      </div>
+    </div>
+    <nav class="bottom-nav" aria-label="Principal">
+      <button class="${view.page==="home"?"on":""}" data-go="home">${ico("home")}Início</button>
+      <button class="${view.page==="calendario"?"on":""}" data-go="calendario">${ico("cal")}Escala</button>
+      <button class="${view.page==="loja"?"on":""}" data-go="loja">${ico("gift")}Loja</button>
+      <button class="${view.page==="fala"?"on":""}" data-go="fala">${ico("chat")}Mensagens</button>
+      <button class="${tab("mais")?"on":""}" data-go="mais">${ico("more")}Mais</button>
+    </nav>
+    ${view.sheet ? sheetDiaHTML() : ""}${view.modal ? modalHTML() : ""}${view.confirm ? confirmarHTML() : ""}${av && !view.confirm ? avisoHTML(av) : ""}${view.premio ? premioHTML() : ""}`;
   }
 
   function pageHTML(u) {
@@ -484,44 +531,60 @@
     if (view.page === "beneficios") return beneficiosHTML(u);
     if (view.page === "fala") return falaHTML(u);
     if (view.page === "avisos") return avisosHTML(u);
+    if (view.page === "mais") return maisHTML(u);
     if (view.verPerfil) return vitrineHTML(userById(view.verPerfil) || u);
     if (view.page === "painel") return painelHTML(u);
     if (view.page === "admin") return adminHTML(u);
+    if (view.page === "home") return homeHTML(u);
     return homeHTML(u);
   }
 
   function homeHTML(u) {
-    const meus = state.slots.filter(s => s.userId === u.id && s.data >= fmt(today())).slice(0, 8);
+    const meus = state.slots.filter(s => s.userId === u.id && s.data >= fmt(today()) && s.status === "confirmado").sort((a,b)=>a.data.localeCompare(b.data)).slice(0, 5);
+    const prox = meus[0];
+    const hojeTxt = today().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+    const avisos = (state.notifs || []).filter(n => n.userId === u.id && !n.lido).slice(0, 3);
     const pend = state.pedidos.filter(p => p.status === "pendente").length;
-    const livres = state.slots.filter(s => !s.userId && s.data >= fmt(today()) && s.data <= fmt(addDays(today(), 14))).length;
-    const quadro = AV_SEED.unidades.map(un => {
-      const key = fmt(today());
-      const d = state.slots.filter(s => s.data===key && s.unidade===un.id && s.turno==="dia");
-      const n = state.slots.filter(s => s.data===key && s.unidade===un.id && s.turno==="noite");
-      const pd = d.filter(s => s.userId && s.status!=="mural").length;
-      const pn = n.filter(s => s.userId && s.status!=="mural").length;
-      return `<button class="casa c-${un.id}" data-casa="${un.id}">
-        <h3>${un.nome}</h3>
-        <p>${un.endereco}</p>
-        <p>Hoje · dia ${pd}/${d.length || 2} · noite ${pn}/${n.length || (un.id==="iretama"?1:2)}</p>
-        <div class="bars"><div class="bar"><i style="width:${d.length? (pd/d.length*100):0}%"></i></div><div class="bar"><i style="width:${n.length? (pn/n.length*100):0}%"></i></div></div>
-      </button>`;
-    }).join("");
-    return `<div class="topbar"><div><h1>Olá, ${firstName(u.nome)}</h1><p class="muted">Selo ${u.selo} · ${u.alegretes} Alegretes · ${u.plantoes} plantões</p></div></div>
-    <div class="casas">${quadro}</div>
-    <div class="stats">
-      <div class="stat"><b>${u.pontos}</b><span>Pontos de confiabilidade</span></div>
-      <div class="stat"><b>${u.alegretes}</b><span>Alegretes</span></div>
-      <div class="stat"><b>${meus.length}</b><span>Próximos plantões</span></div>
-      <div class="stat"><b>${livres}</b><span>Vagas nos próximos 14 dias</span></div>
+    return `<p class="page-kicker">${hojeTxt}</p>
+    <h1 class="page-title">Olá, ${firstName(u.nome)}</h1>
+    <article class="aero-card shift-card">
+      <p class="muted">Próximo plantão</p>
+      ${prox ? `<h3>${prox.data === fmt(today()) ? "Hoje" : rotuloQuando(prox)} · ${rotuloTurno(prox)}</h3>
+        <p>${nomeUn(prox.unidade)}</p>
+        <button class="btn btn-green" data-go="calendario" style="margin-top:8px">Ver na escala</button>` : `<p>Nenhum plantão confirmado à frente.</p>
+        <button class="btn btn-green" data-go="calendario">Ver vagas</button>`}
+    </article>
+    <div class="atalhos">
+      <button class="atalho" data-go="calendario">Minha escala</button>
+      <button class="atalho" data-go="calendario">Vagas</button>
+      <button class="atalho" data-go="loja">Loja</button>
+      <button class="atalho" data-go="fala">Mensagens</button>
     </div>
-    <div class="card">
-      <h3>Meus próximos plantões</h3>
-      ${meus.length ? `<table><tr><th>Data</th><th>Unidade</th><th>Turno</th><th>Presença</th></tr>
-        ${meus.map(s => `<tr><td>${rotuloQuando(s)}</td><td>${nomeUn(s.unidade)}</td><td>${rotuloTurno(s)}</td><td>${s.saida?"Encerrado":s.chegada?"Chegou":s.status}</td></tr>`).join("")}
-      </table>` : `<p class="muted">Nenhum plantão futuro no seu nome. Abra o mural e assine uma vaga.</p>`}
-      ${isCoord(u) && pend ? `<p class="ok">${pend} pedido(s) esperando a coordenação.</p>` : ""}
-    </div>`;
+    <article class="aero-card">
+      <div class="cofre" style="margin:0;width:100%;border:0;background:transparent;padding:0">
+        <span class="moeda-grande">A$</span>
+        <div><b>${A$(u.alegretes)}</b><span>no cofre</span></div>
+      </div>
+    </article>
+    ${avisos.length ? `<article class="aero-card" style="margin-top:12px"><h3>Avisos</h3>${avisos.map(a=>`<p>${a.texto}</p>`).join("")}<button class="btn btn-ghost btn-small" data-go="avisos">Ver todos</button></article>` : ""}
+    <article class="aero-card" style="margin-top:12px">
+      <h3>Próximos plantões</h3>
+      ${meus.length ? `<div class="lista-pl">${meus.map(s => `<button data-go="calendario"><b>${rotuloQuando(s)}</b> · ${nomeUn(s.unidade)} · ${s.turno==="dia"?"Dia":"Noite"}</button>`).join("")}</div>` : `<p class="muted">Nada marcado. Abra a Escala.</p>`}
+      ${isCoord(u) && pend ? `<p class="chip-warn">${pend} pedido(s) no painel</p>` : ""}
+    </article>`;
+  }
+
+  function maisHTML(u) {
+    return `<h1 class="page-title">Mais</h1>
+      <div class="mais-list">
+        <button data-go="perfil">Meu perfil</button>
+        <button data-go="beneficios">Benefícios</button>
+        <button data-go="avisos">Avisos</button>
+        ${isCoord(u) ? `<button data-go="painel">Painel da coordenação</button>` : ""}
+        ${isAdmin(u) ? `<button data-go="admin">Loja e bônus</button>` : ""}
+        <button type="button" id="btn-fonte">${view.fonteGrande ? "Letra normal" : "Letra grande"}</button>
+        <button data-go="sair">Sair</button>
+      </div>`;
   }
 
   function nomeUn(id) { return (AV_SEED.unidades.find(u => u.id === id) || {}).nome || id; }
@@ -561,33 +624,34 @@
     for (let i=0;i<7;i++) dias.push(addDays(start, i));
     const titulo = `${dias[0].getDate()} a ${dias[6].getDate()} de ${MESES[dias[0].getMonth()]}`;
     const casa = AV_SEED.unidades.find(x => x.id === unidade);
-    return `<div class="quadro-semana">
-      <div class="quadro-head">
-        <button class="btn btn-small btn-ghost" id="week-prev">◀</button>
-        <div>
-          <b>${casa ? casa.nome : ""}</b>
-          <div class="muted">${titulo}</div>
-        </div>
-        <button class="btn btn-small btn-ghost" id="week-next">▶</button>
+    return `<div class="agenda-nav">
+        <button class="btn btn-small btn-ghost" id="week-prev" aria-label="Semana anterior">◀</button>
+        <div style="text-align:center"><b>${casa ? casa.nome : ""}</b><div class="muted">${titulo}</div></div>
+        <button class="btn btn-small btn-ghost" id="week-next" aria-label="Próxima semana">▶</button>
       </div>
-      <div class="semana">${dias.map(d => {
+      <div class="agenda-grid">${dias.map(d => {
         const key = fmt(d);
         const hoje = key === fmt(today());
         const diaSlots = state.slots.filter(s => s.data===key && s.unidade===unidade && s.turno==="dia");
         const noiteSlots = state.slots.filter(s => s.data===key && s.unidade===unidade && s.turno==="noite");
-        const pills = (arr) => arr.map(s => {
-          const livre = !s.userId || s.status === "mural" || s.status === "emergencia";
-          const p = s.userId ? firstName((userById(s.userId)||{}).nome || "") : "Pegar";
-          return `<button class="pv ${classePv(s)}" data-vaga="${s.id}">${livre && !s.userId ? "Pegar" : p}</button>`;
-        }).join("");
-        const nomeDia = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()];
-        return `<div class="dia-semana ${hoje?"hoje":""}">
-          <div class="ds-head"><b>${nomeDia}</b><span>${d.getDate()}${hoje?" · hoje":""}</span></div>
-          <div class="turno-box dia"><i>07–19</i>${pills(diaSlots)}</div>
-          <div class="turno-box noite"><i>19–07</i>${pills(noiteSlots)}</div>
-        </div>`;
-      }).join("")}</div>
-    </div>`;
+        const bloco = (arr, tituloT) => {
+          const fill = arr.filter(s => s.userId && s.status !== "mural").length;
+          const falta = arr.length - fill;
+          const nomes = arr.filter(s => s.userId).map(s => firstName((userById(s.userId)||{}).nome||"")).join(", ");
+          const livre = arr.find(s => !s.userId);
+          return `<article class="aero-card turno-card">
+            <header><b>${tituloT}</b><span class="${falta?"chip-warn":"chip-ok"}">${falta ? "Falta "+falta : "Completo"} · ${fill}/${arr.length}</span></header>
+            <div class="nomes-turno">${nomes || "Ninguém ainda"}</div>
+            ${livre ? `<button class="btn btn-green btn-small" data-vaga="${livre.id}" style="margin-top:8px">Assumir vaga</button>` : `<button class="btn btn-ghost btn-small" data-dia="${key}" style="margin-top:8px">Ver equipe</button>`}
+          </article>`;
+        };
+        const nomeDia = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"][d.getDay()];
+        return `<section class="agenda-dia">
+          <div class="when">${hoje?"HOJE · ":""}${nomeDia} ${d.getDate()}</div>
+          ${bloco(diaSlots, "Turno dia 07–19")}
+          ${bloco(noiteSlots, "Turno noite 19–07")}
+        </section>`;
+      }).join("")}</div>`;
   }
   function faixaAmanha(u) {
     const amanha = fmt(addDays(today(), 1));
@@ -627,41 +691,68 @@
     for (let d=1; d<=last.getDate(); d++) cells.push(new Date(y,m,d));
     while (cells.length % 7) cells.push(null);
 
-    const notas = resumoUnidade(view.unidade, y, m);
-    return `<div class="topbar">
-      <div><h1>Mural de plantões</h1><p class="muted">Semana no celular · mês na folhinha. Toque na vaga colorida.</p></div>
+    return `<h1 class="page-title">Escala</h1>
+    <div class="unit-seg" role="tablist">
+      ${AV_SEED.unidades.map(un => `<button class="${view.unidade===un.id?"on":""}" data-un="${un.id}">${un.nome}</button>`).join("")}
     </div>
-    <div class="casas-mini">
-      ${AV_SEED.unidades.map(un => `<button class="casa-mini ${view.unidade===un.id?"on":""}" data-un="${un.id}">
-        <img src="${un.foto}" alt="${un.nome}">
-        <span>${un.nome}</span>
-      </button>`).join("")}
+    <div class="seg" style="margin:10px 0">
+      <button class="${view.modo==="semana"?"on":""}" data-modo="semana">Semana</button>
+      <button class="${view.modo==="mes"?"on":""}" data-modo="mes">Mês</button>
     </div>
-    <div class="chips" style="margin-top:8px">
-      <button class="chip ${view.modo==="semana"?"on":""}" data-modo="semana">Semana</button>
-      <button class="chip ${view.modo==="mes"?"on":""}" data-modo="mes">Mês</button>
-    </div>
-    ${view.modo === "semana" ? semanaHTML(view.unidade) : `<div class="folha" style="margin-top:12px">
-      <div class="folha-head">
-        <div class="folha-nav">
-          <button class="btn btn-small" id="mes-prev" ${view.mesOffset<=0?"disabled":""}>◀</button>
-          <h2>${MESES[m]}</h2>
-          <button class="btn btn-small" id="mes-next" ${view.mesOffset>=2?"disabled":""}>▶</button>
-        </div>
-        <div class="muted" style="color:#cfc3b4">${nomeUn(view.unidade)} · ${y}</div>
-      </div>
-      <div class="week">${SEMANA.map(s=>`<div>${s}</div>`).join("")}</div>
-      <div class="grid">${cells.map(d => diaHTML(d, view.unidade)).join("")}</div>
-      <div class="folha-notes"><b>NOTAS</b> — ${notas}</div>
-    </div>`}
+    ${view.modo === "semana" ? semanaHTML(view.unidade) : mesMiniHTML(cells, y, m)}
     <div class="legend">
-      <span><i class="dot livre"></i>Livre</span>
-      <span><i class="dot confirmado"></i>Confirmado</span>
-      <span><i class="dot pendente"></i>Pendente</span>
-      <span><i class="dot incompleto"></i>Incompleto</span>
-      <span><i class="dot emergencia"></i>Emergência / furo</span>
-      <span><i class="dot externo"></i>Externo</span>
+      <span><i class="dot confirmado"></i>Completo</span>
+      <span><i class="dot pendente"></i>Falta gente</span>
+      <span><i class="dot livre"></i>Aberto</span>
+      <span><i class="dot emergencia"></i>Urgente</span>
     </div>`;
+  }
+
+  function mesMiniHTML(cells, y, m) {
+    const wds = ["D","S","T","Q","Q","S","S"];
+    return `<div class="agenda-nav">
+      <button class="btn btn-small" id="mes-prev" ${view.mesOffset<=0?"disabled":""}>◀</button>
+      <b>${MESES[m]} ${y}</b>
+      <button class="btn btn-small" id="mes-next" ${view.mesOffset>=2?"disabled":""}>▶</button>
+    </div>
+    <div class="mes-mini">${wds.map(w=>`<div class="mes-wd">${w}</div>`).join("")}${cells.map(d => {
+      if (!d) return `<div class="day-mini empty"></div>`;
+      const key = fmt(d);
+      const slots = state.slots.filter(s => s.data===key && s.unidade===view.unidade);
+      const dia = slots.filter(s => s.turno==="dia");
+      const noite = slots.filter(s => s.turno==="noite");
+      const mark = (arr) => {
+        const fill = arr.filter(s => s.userId && s.status!=="mural").length;
+        if (arr.some(s => s.status==="emergencia")) return "bad";
+        if (!arr.length) return "off";
+        if (fill === arr.length) return "ok";
+        if (fill === 0) return "off";
+        return "mid";
+      };
+      return `<button class="day-mini ${key===fmt(today())?"hoje":""}" data-dia="${key}">${d.getDate()}<span class="dots"><i class="${mark(dia)}"></i><i class="${mark(noite)}"></i></span></button>`;
+    }).join("")}</div>`;
+  }
+
+  function sheetDiaHTML() {
+    const key = view.sheet;
+    const [yy,mm,dd] = key.split("-");
+    const unidade = view.unidade;
+    const bloco = (turno, titulo) => {
+      const arr = state.slots.filter(s => s.data===key && s.unidade===unidade && s.turno===turno);
+      const fill = arr.filter(s => s.userId && s.status!=="mural").length;
+      const livre = arr.find(s => !s.userId);
+      const nomes = arr.map(s => {
+        const u = s.userId ? userById(s.userId) : null;
+        return `<div class="vaga-line"><span>${u ? u.nome : "Vaga livre"}</span>${!s.userId?`<button class="btn btn-small btn-green" data-vaga="${s.id}">Assumir</button>`:""}</div>`;
+      }).join("");
+      return `<h3>${titulo} · ${fill}/${arr.length}</h3>${nomes || "<p class='muted'>Sem vaga</p>"}${livre?"":""}`;
+    };
+    return `<div class="sheet-bg" id="fecha-sheet"><div class="sheet" onclick="event.stopPropagation()">
+      <b>${dd}/${mm}</b> · ${nomeUn(unidade)}
+      ${bloco("dia","Dia 07–19")}
+      ${bloco("noite","Noite 19–07")}
+      <button class="btn btn-ghost" id="fecha-sheet-btn" style="margin-top:12px">Fechar</button>
+    </div></div>`;
   }
 
   function corDot(slot) {
@@ -797,6 +888,7 @@
   function perfilHTML(u) {
     const hoje = fmt(today());
     const capa = u.capa || "img/capa-jardim.jpg";
+    /* perfil compacto mobile */
     const foto = u.foto || "";
     const recados = u.recados || [];
     const album = u.album || [];
@@ -812,7 +904,7 @@
       if (!s.saida) return `<button class="btn btn-ponto saida" data-saida="${s.id}">Estou saindo · ${nomeUn(s.unidade)}</button>`;
       return "";
     }).join("");
-    return `<div class="bebo">
+    return `<div class="bebo perfil-app">
       <label class="bebo-capa" style="background-image:url('${capa}')">
         <span>Trocar capa</span>
         <input type="file" accept="image/*" id="up-capa" hidden>
@@ -984,10 +1076,9 @@
 
   function beneficiosHTML() {
     const s = AV_SEED.sindicato;
-    return `<div class="topbar"><div><h1>Benefícios do sindicato</h1><p class="muted">${s.nome}</p></div></div>
+    return `<div class="topbar"><div><h1>Benefícios</h1><p class="muted">O que a equipe pode usar no dia a dia.</p></div></div>
     <div class="card" style="margin-bottom:14px">
-      <p>Parceria Alegro Vivare + SEESS. Aqui só o que o associado pode usar no dia a dia. O pedido é no site do sindicato — a gente só abre a porta.</p>
-      <p class="muted">Telefone ${s.fone} · Contagem</p>
+      <p>Convênios e descontos para quem trabalha nas casas. O pedido é no link de cada item.</p>
     </div>
     <div class="loja-grid">${AV_SEED.beneficios.map(b => `
       <div class="item bene">
@@ -997,13 +1088,13 @@
         <p class="muted">${b.desc}</p>
         <a class="btn btn-green" href="${b.url}" target="_blank" rel="noopener" data-bene="${b.id}">${b.cta}</a>
       </div>`).join("")}</div>
-    <p class="muted" style="margin-top:12px">Fonte: <a href="${s.site}" target="_blank" rel="noopener">seess.com.br/beneficios</a></p>`;
+    <p class="muted" style="margin-top:12px"><a href="${s.site}" target="_blank" rel="noopener">Ver todos os benefícios</a></p>`;
   }
 
   function falaHTML(u) {
     const minhas = (state.falas || []).filter(f => f.userId === u.id).slice().reverse();
     return `<div class="topbar">
-      <div><h1>Fala com a casa</h1><p class="muted">Um recado. O Edilson responde uma vez. Não é chat.</p></div>
+      <div><h1>Mensagens</h1><p class="muted">Um recado para a casa. Resposta única. Não é chat.</p></div>
     </div>
     <div class="card">
       <label>O que é</label>
@@ -1151,12 +1242,9 @@
       if (!u) return toast($("#msg"), "err", "E-mail ou senha inválidos.");
       if (u.status === "pendente") return toast($("#msg"), "err", "Cadastro aguardando coordenação.");
       if (u.status === "recusado") return toast($("#msg"), "err", "Cadastro recusado.");
-      state.session = u.id; save(); go("perfil");
+      setSessao(u.id); save(); go("perfil");
     };
-    $$("[data-entrar]").forEach(b => b.onclick = () => {
-      state.session = b.getAttribute("data-entrar");
-      save(); go("perfil");
-    });
+    $$("[data-entrar]").forEach(b => { b.remove(); });
     $$("[data-ver]").forEach(b => b.onclick = () => {
       view.verPerfil = b.getAttribute("data-ver");
       view.page = "perfil";
@@ -1190,7 +1278,14 @@
         return toast($("#msg"), "err", "Já existe " + existente.nome + " na equipe. Entre com o e-mail cadastrado.");
       }
       const naLista = (AV_SEED.equipeEssenior || []).some(x => x.toLowerCase() === nome.toLowerCase());
-      if (fixo && naLista) {
+      if (nome.toLowerCase() === "edilson emilio alves") {
+        u.status = "ativo";
+        u.selo = "Confiável";
+        u.papel = "admin";
+        u.loja = true;
+        u.coordena = true;
+        u.cargo = "Gerontólogo";
+      } else if (fixo && naLista) {
         u.status = "ativo";
         u.selo = "Confiável";
         u.pontos = 0;
@@ -1203,7 +1298,7 @@
       }
       save();
       if (u.status !== "ativo") return toast($("#msg"), "ok", "Cadastro enviado. A coordenação confirma o vínculo antes da escala.");
-      state.session = u.id; save(); go("perfil");
+      setSessao(u.id); save(); go("perfil");
     };
     const btnRec = $("#btn-recuperar");
     if (btnRec) btnRec.onclick = () => {
@@ -1287,7 +1382,7 @@
     };
     $$("[data-go]").forEach(b => b.onclick = () => {
       const p = b.getAttribute("data-go");
-      if (p === "sair") { state.session = null; save(); go("login"); return; }
+      if (p === "sair") { setSessao(null); save(); go("login"); return; }
       go(p);
     });
     $$("[data-un]").forEach(b => b.onclick = () => { beep("click"); view.unidade = b.getAttribute("data-un"); render(); });
@@ -1306,9 +1401,17 @@
     const wp = $("#week-prev"); if (wp) wp.onclick = () => { view.weekOffset -= 1; render(); };
     const wn = $("#week-next"); if (wn) wn.onclick = () => { view.weekOffset += 1; render(); };
     $$(".day[data-dia]").forEach(el => el.onclick = () => {
-      view.modal = { tipo: "dia", data: el.getAttribute("data-dia"), unidade: view.unidade };
+      view.sheet = el.getAttribute("data-dia");
       render();
     });
+    $$("[data-dia]").forEach(el => el.onclick = () => {
+      view.sheet = el.getAttribute("data-dia");
+      render();
+    });
+    const fs = $("#fecha-sheet");
+    if (fs) fs.onclick = () => { view.sheet = null; render(); };
+    const fsb = $("#fecha-sheet-btn");
+    if (fsb) fsb.onclick = () => { view.sheet = null; render(); };
     const x = $("#xmodal"); if (x) x.onclick = () => { view.modal = null; render(); };
     const bg = $("#fechar-modal");
     if (bg) bg.onclick = (e) => { if (e.target.id === "fechar-modal") { view.modal = null; render(); } };
@@ -1576,14 +1679,15 @@
         const remoto = await puxarNuvem();
         if (remoto && remoto.users) {
           state = ajeitar(remoto);
-          try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
         } else {
           await fetch((window.AV_BANCO.url || "").replace(/\/$/, "") + "/rest/v1/estado?id=eq.1", {
             method: "PATCH",
             headers: bancoHeaders(),
-            body: JSON.stringify({ payload: state })
+            body: JSON.stringify({ payload: estadoParaNuvem() })
           });
         }
+        state.session = sessaoDesteAparelho();
+        try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
       } catch (e) {
         alert("Não conectou o banco. A escala não vai ficar igual em todos os celulares até o Supabase estar ligado.");
       }
