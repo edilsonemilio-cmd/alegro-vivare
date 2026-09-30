@@ -1,5 +1,5 @@
 (function () {
-  const KEY = "alegro-vivare-v12";
+  const KEY = "alegro-vivare-v13";
   const DEV_SEM_LOGIN = false;
   const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
   const SEMANA = ["DOMINGO","SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"];
@@ -340,15 +340,11 @@
     return `<div class="auth-card">
       <div class="brand-mini"><img src="img/logo.png" alt="Alegro" class="logo-sm"><div><strong>Alegro Vivare</strong><div class="muted">Envelhecer com Alegria</div></div></div>
       <h2>Entrar</h2>
-      <p class="muted">Equipe já cadastrada usa o e-mail do eSenior. Senha inicial: <b>Alegro123</b></p>
+      <p class="muted">Entre com o e-mail e a senha cadastrados.</p>
       <div id="msg"></div>
       <label>E-mail</label><input id="email" type="email" placeholder="seu e-mail">
       <label>Senha</label><input id="senha" type="password" placeholder="senha">
       <button class="btn btn-green" id="btn-login">Entrar</button>
-      <p class="muted" style="margin-top:16px">Prévia — entrar como</p>
-      <button class="btn btn-ghost" data-entrar="u-edilson">Gestor · Edilson</button>
-      <button class="btn btn-ghost" data-entrar="u-marcus">Coordenação · Marcus</button>
-      <button class="btn btn-ghost" data-entrar="u-sabrina">Cuidador · Sabrina</button>
       <div class="links">
         <a href="#/cadastro">Criar cadastro</a>
         <a href="#/recuperar">Recuperar senha</a>
@@ -396,7 +392,7 @@
   function recuperarHTML() {
     return `<div class="auth-card">
       <h2>Recuperar senha</h2>
-      <p class="muted">Informe o e-mail. Neste piloto a senha volta para Alegro123.</p>
+      <p class="muted">Informe o e-mail da conta. A coordenação confirma a redefinição.</p>
       <div id="msg"></div>
       <label>E-mail</label><input id="email" type="email">
       <button class="btn btn-green" id="btn-recuperar">Redefinir</button>
@@ -1152,7 +1148,7 @@
       if (existente && existente.status === "ativo") {
         return toast($("#msg"), "err", "Já existe " + existente.nome + " na equipe. Entre com o e-mail cadastrado.");
       }
-      const naLista = AV_SEED.usuarios.some(x => x.nome.toLowerCase() === nome.toLowerCase());
+      const naLista = (AV_SEED.equipeEssenior || []).some(x => x.toLowerCase() === nome.toLowerCase());
       if (fixo && naLista) {
         u.status = "ativo";
         u.selo = "Confiável";

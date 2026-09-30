@@ -42,23 +42,25 @@ window.AV_SEED = {
     { id: "folga", nome: "Folga premiada", custo: 280000, teto: 200, foto: "img/logo.png", desc: "≈ 187 plantões · só quem segura a casa" }
   ],
   usuarios: [
-    { id: "u-edilson", nome: "Edilson Emilio Alves", email: "alegrovivare@gmail.com", papel: "admin", vinculo: "fixo", unidade: "tinguassu", turno: null, cargo: "Gerontólogo", coordena: false, loja: true },
-    { id: "u-marcus", nome: "Marcus Vinicius Nogueira Vieira", email: "enfermagem.marcus@gmail.com", papel: "coord", vinculo: "fixo", unidade: "courupita", turno: null, cargo: "Enfermeiro", coordena: true, loja: false },
-    { id: "u-eduarda", nome: "Maria Eduarda Ferreira da Silva", email: "mariaaafdasilva@gmail.com", papel: "coord", vinculo: "fixo", unidade: "courupita", turno: "dia", cargo: "Cuidador(a)", coordena: true, loja: false },
-    { id: "u-ananda", nome: "Ananda Ribeiro Lima", email: "anandaribeiro018@gmail.com", papel: "coord", vinculo: "fixo", unidade: "courupita", turno: null, cargo: "Coordenadora", coordena: true, loja: false },
-    { id: "u-felipe", nome: "Felipe Serafim Marques", email: "felipegames97@hotmail.com", papel: "coord", vinculo: "fixo", unidade: "iretama", turno: null, cargo: "Coordenador", coordena: true, loja: false },
-    { id: "u-eduarda2", nome: "Eduarda Almeida Camargo", email: "dudahalmeida333@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "iretama", turno: "dia", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-sabrina", nome: "Sabrina Pereira dos Santos", email: "sabrinaperera03@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "courupita", turno: "dia", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-fran", nome: "Francilene Aparecida de Jesus", email: "francileneaparecida52@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "tinguassu", turno: "noite", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-deusa", nome: "Deusana Fonseca Costa Sales", email: "deusa.kabuk@hotmail.com", papel: "cuidador", vinculo: "fixo", unidade: "iretama", turno: "noite", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-augusto", nome: "Augusto Cesar Antunes Pereira", email: "pereiraantunescaugusto@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "tinguassu", turno: "dia", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-thales", nome: "Thales Adriano", email: "thalesadriano817@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "courupita", turno: "noite", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-bruna", nome: "Bruna Fernanda Damaceno Silva", email: "vgrtrovao@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "courupita", turno: "noite", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-luiz", nome: "Luiz Felipe Alves Camilo", email: "felipecamillo94@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "tinguassu", turno: "noite", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-erika", nome: "Érika Cristina Mendes dos Santos", email: "erikacristina7350@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "tinguassu", turno: "dia", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-aline", nome: "Aline Eduarda Garcia Rosa", email: "eduardagarciaaline@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "iretama", turno: "dia", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-david", nome: "David Wiliam", email: "davidwilliande1997@gamil.com", papel: "cuidador", vinculo: "fixo", unidade: "courupita", turno: "dia", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-lorrayne", nome: "Lorrayne Sthefane Rocha Andrade", email: "lorraynerochaj@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "tinguassu", turno: "dia", cargo: "Cuidador(a)", coordena: false, loja: false },
-    { id: "u-edilene", nome: "Edilene do Carmo dos Santos", email: "edilenemaria2709@gmail.com", papel: "cuidador", vinculo: "fixo", unidade: "iretama", turno: "noite", cargo: "Cuidador(a)", coordena: false, loja: false }
+    { id: "u-edilson", nome: "Edilson Emilio Alves", email: "alegrovivare@gmail.com", papel: "admin", vinculo: "fixo", unidade: "tinguassu", turno: null, cargo: "Gerontólogo", coordena: false, loja: true }
+  ],
+  equipeEssenior: [
+    "Marcus Vinicius Nogueira Vieira",
+    "Maria Eduarda Ferreira da Silva",
+    "Ananda Ribeiro Lima",
+    "Felipe Serafim Marques",
+    "Eduarda Almeida Camargo",
+    "Sabrina Pereira dos Santos",
+    "Francilene Aparecida de Jesus",
+    "Deusana Fonseca Costa Sales",
+    "Augusto Cesar Antunes Pereira",
+    "Thales Adriano",
+    "Bruna Fernanda Damaceno Silva",
+    "Luiz Felipe Alves Camilo",
+    "Érika Cristina Mendes dos Santos",
+    "Aline Eduarda Garcia Rosa",
+    "David Wiliam",
+    "Lorrayne Sthefane Rocha Andrade",
+    "Edilene do Carmo dos Santos"
   ]
 };
